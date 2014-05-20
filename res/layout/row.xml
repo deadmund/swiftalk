@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/row_layout"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="#ad00d5"
+    android:gravity="fill_horizontal|center_vertical"
+    android:orientation="horizontal" >
+	
+    <ImageView android:id="@+id/slow_butt"
+        android:src="@drawable/arrowleftdouble_32"
+        android:layout_weight="1"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
+    
+    <Button android:id="@+id/play_butt"
+        android:layout_weight="1"
+    	android:layout_width="wrap_content"
+    	android:layout_height="wrap_content"
+    	android:drawableRight="@drawable/arrowright_24"/>
+    
+    <ImageView android:id="@+id/fast_butt"
+        android:layout_weight="1"
+    	android:src="@drawable/arrowrightdouble_32"
+    	android:layout_width="wrap_content"
+    	android:layout_height="wrap_content" />
+
+</LinearLayout>

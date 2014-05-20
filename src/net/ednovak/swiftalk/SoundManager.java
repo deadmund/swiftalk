@@ -1,6 +1,9 @@
 package net.ednovak.swiftalk;
 
+import java.util.Random;
+
 import android.app.Activity;
+import android.graphics.Color;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioRecord;
@@ -9,9 +12,10 @@ import android.media.MediaRecorder;
 import android.os.Bundle;
 import android.view.View;
 import android.view.View.OnClickListener;
-import android.view.View.OnLongClickListener;
-import android.view.ViewGroup;
+import android.view.animation.LinearInterpolator;
+import android.view.animation.RotateAnimation;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ToggleButton;
 
@@ -92,7 +96,7 @@ public class SoundManager extends Activity {
     		tracks[btCount][i] = tmp[i];
     	}
     	
-    	addButton(btCount);
+    	addRow(btCount);
     	btCount += 1;
     }
     
@@ -103,33 +107,57 @@ public class SoundManager extends Activity {
     	tmpEnd = 0;
     }
     
-    private void addButton(int number){
+    private void addRow(int number){
     	final int num = number;
-    	Button bt = new Button(this);
-    	bt.setText("Recording " + number++);
-    	bt.setId(number);
-        bt.setLayoutParams(new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT));
+    	
+        // But this in the vertical ll
         LinearLayout ll = (LinearLayout) findViewById(R.id.linlay);
-    	ll.addView(bt);
-    	
-    	//Log.d("swifttalk", "Button should be up!");
-    	
-    	bt.setOnClickListener(new OnClickListener(){
+        final LinearLayout ll_row = (LinearLayout)getLayoutInflater().inflate(R.layout.row, null);
+        ll.addView(ll_row);
+        
+        Button playbutt = (Button)findViewById(R.id.play_butt);
+        playbutt.setId(num);
+        playbutt.setText("Recording " + num);
+        playbutt.setOnClickListener(new OnClickListener(){
     		@Override
     		public void onClick(View v){
     			play(num);
+    			
+        		Random rnd = new Random(); 
+        		int color = Color.argb(255, rnd.nextInt(256), rnd.nextInt(256), rnd.nextInt(256));   
+        		ll_row.setBackgroundColor(color);
     		}
-    	});
-    	
-    	bt.setOnLongClickListener(new OnLongClickListener(){
-    		@Override
-    		public boolean onLongClick(View v){
-    			slowDown(num);
-    			return true;
-    		}
-    	});
+        });
+        
+        ImageView rr = (ImageView)findViewById(R.id.slow_butt);
+        rr.setId(num);
+        rr.setOnClickListener(new OnClickListener(){
+        	@Override
+        	public void onClick(View v){
+        		slowDown(num);
+    			RotateAnimation anim = new RotateAnimation(0f, 359f, 32f, 16f);
+    			anim.setInterpolator(new LinearInterpolator());
+    			anim.setDuration(200);
+
+    			// Start animating the image
+    			v.startAnimation(anim);
+        	}
+        });
+        
+        ImageView ff = (ImageView)findViewById(R.id.fast_butt);
+        ff.setId(num);
+        ff.setOnClickListener(new OnClickListener(){
+        	@Override
+        	public void onClick(View v){
+        		speedUp(num);
+    			RotateAnimation anim = new RotateAnimation(0f, 359f, 32f, 16f);
+    			anim.setInterpolator(new LinearInterpolator());
+    			anim.setDuration(200);
+
+    			// Start animating the image
+    			v.startAnimation(anim);
+        	}
+        });
     }
     
     private void play(int num){
@@ -172,6 +200,8 @@ public class SoundManager extends Activity {
     	for(int i = 0; i < fastTrack.length; i++){
     		fastTrack[i] = origTrack[i*2];
     	}
+    	
+    	tracks[num] = fastTrack;
     }
 
     /*
