@@ -14,6 +14,8 @@ import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.animation.Animation;
+import android.view.animation.AnimationUtils;
 import android.widget.Toast;
 
 public class TrackView extends View {
@@ -216,6 +218,8 @@ public class TrackView extends View {
 		}
 		
 		public boolean onDown(MotionEvent e){
+			Animation a = AnimationUtils.loadAnimation(TrackView.this.getContext(), R.anim.blink);
+			TrackView.this.startAnimation(a);
 			return false;
 		}
 		
