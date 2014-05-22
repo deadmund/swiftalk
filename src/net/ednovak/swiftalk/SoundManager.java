@@ -27,6 +27,7 @@ public class SoundManager extends Activity {
 	private int tmpEnd = 0;
 	
 	private AudioRecord ar;
+	private AudioTrack at;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,9 +58,14 @@ public class SoundManager extends Activity {
     			AudioFormat.CHANNEL_IN_MONO,
     			AudioFormat.ENCODING_PCM_16BIT, buffSize);
     	
+    	Log.d("swiftalk", "Recording Buffer size: " + buffSize);
     	Thread recThread = new Thread(new Runnable(){
     		public void run(){
-    			gatherAudioSamples(buffSize);
+    	    	while(ar.getRecordingState() == AudioRecord.RECORDSTATE_RECORDING){
+    	    		int new_samples = ar.read(tmp, tmpEnd, buffSize/2);
+    	    		tmpEnd += new_samples;
+    	    	}
+    	    	Log.d("swiftalk", "Recording Thread Finished");
     		}
     	}, "Audio Recording Thread");
     	ar.startRecording();
@@ -70,24 +76,12 @@ public class SoundManager extends Activity {
     	//Log.d("swiftalk", "rec length: " + tmpEnd + "  in s: " + tmpEnd / Fs);
     	long s = System.currentTimeMillis();
     	ar.stop();
-    	ar.release();
     	long f = System.currentTimeMillis();
-    	Log.d("swiftalk", "ar.stop and ar.release(): " + (f - s));
+    	Log.d("swiftalk", "ar.stop: " + (f - s));
     	storeTmpAsTrack();
     	eraseTmp();
         long e = System.currentTimeMillis();
         Log.d("swiftalk", "stopRecording: " +( e - s));
-    }
-    
-    private void gatherAudioSamples(int buffSize){
-    	while(ar.getRecordingState() == AudioRecord.RECORDSTATE_RECORDING){
-    		//Fs/10 is always 1/10 of a second
-    		int new_samples = ar.read(tmp, tmpEnd, buffSize/2);
-    		tmpEnd += new_samples;
-    		//Log.d("swiftalk", "new samples: " + new_samples);
-    		
-    		//Log.d("swiftalk", "new samples" + tmp[tmpEnd-1] + " " + tmp[tmpEnd-2] + " " + tmp[tmpEnd-3]);
-    	}
     }
     
     private void eraseTmp(){
@@ -106,8 +100,14 @@ public class SoundManager extends Activity {
     	
     	// Get only the chunk of data that is non-zero
     	short[] tmp_chunk = new short[tmpEnd];
-    	for(int i = 0; i < tmpEnd; i++){
-    		tmp_chunk[i] = tmp[i];
+    	int i = 0;
+    	try{
+	    	for(i = 0; i < tmpEnd; i++){
+	    		tmp_chunk[i] = tmp[i];
+	    	}
+    	}
+    	catch(ArrayIndexOutOfBoundsException e){
+    		Log.d("swiftalk", "i: " + i + "  tmp_chunk.length: " + tmp_chunk.length + "  tmp.length:" + tmp.length + "  tmpEnd: " + tmpEnd);
     	}
     	
     	int num = tracks.size()+1;;
@@ -129,25 +129,34 @@ public class SoundManager extends Activity {
     	
     }
     
+    private void stopPlaying(){
+    	at.stop();
+    	at.pause();
+    	at.flush();
+    }
+    
     private void play(short[] data){
     	final short[] d = data;
+    	
+    	if(at != null){
+    		stopPlaying();
+    	}
+    	
+    	int minSize = AudioTrack.getMinBufferSize((int)Fs,
+    			AudioFormat.CHANNEL_OUT_MONO, 
+    			AudioFormat.ENCODING_PCM_16BIT);
+    	
+    	final int track_size = Math.max(minSize, d.length);
+		at =  new AudioTrack(AudioManager.STREAM_MUSIC,
+			(int)Fs,
+	    	AudioFormat.CHANNEL_OUT_MONO,
+	    	AudioFormat.ENCODING_PCM_16BIT,
+	    	track_size,
+	    	AudioTrack.MODE_STREAM);
     	
     	Thread t = new Thread(){
     		@Override
     		public void run(){
-    			
-		    	int minSize = AudioTrack.getMinBufferSize((int)Fs,
-		    			AudioFormat.CHANNEL_OUT_MONO, 
-		    			AudioFormat.ENCODING_PCM_16BIT);
-		    	
-		    	int track_size = Math.max(minSize, d.length);
-	    		AudioTrack at =  new AudioTrack(AudioManager.STREAM_MUSIC,
-    				(int)Fs,
-			    	AudioFormat.CHANNEL_OUT_MONO,
-			    	AudioFormat.ENCODING_PCM_16BIT,
-			    	track_size,
-			    	AudioTrack.MODE_STREAM);
-	    		
 	    		if(at != null){ 	
 			    	if(at.getState() == AudioTrack.STATE_INITIALIZED){
 			    		// Tried mode_static, it cut off the end of the sound
@@ -155,6 +164,7 @@ public class SoundManager extends Activity {
 			    		at.write(d, 0, track_size);
 			    		// Log.d("swiftalk", "Playing number: " + num + "  track_size: " + track_size + "  in s:" + track_size/Fs);
 			    		at.stop();
+			    		at.flush();
 			    	}
 			    	else{
 			    		Toast.makeText(getApplicationContext(), "Slow Down!", Toast.LENGTH_SHORT).show();

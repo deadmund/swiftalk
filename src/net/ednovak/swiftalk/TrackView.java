@@ -27,7 +27,7 @@ public class TrackView extends View {
 	private Shader shader;
 	
 	private short[] data;
-	private short dMax;
+	private double dMax;
 	
 	private final int DARK_BLUE = Color.rgb(70, 95, 255);
 	private final int LIGHT_BLUE = Color.rgb(160, 207, 255);
@@ -70,7 +70,7 @@ public class TrackView extends View {
 		
 		p_data = new Paint();
 		p_data.setColor(DARK_BLUE);
-		p_data.setStrokeWidth(3);
+		p_data.setStrokeWidth(1);
 		p_data.setStyle(Paint.Style.STROKE);
 		p_data.setAlpha(165);
 		
@@ -93,8 +93,6 @@ public class TrackView extends View {
 		data = d;
 		dMax = absMax(d);
 		//dMin = min(d);
-		invalidate();
-		requestLayout();
 	}
 	
 	public short[] getTrackData(){
@@ -107,8 +105,6 @@ public class TrackView extends View {
 	
 	public void setTrackNumber(int num){
 		track_num = num;
-		invalidate();
-		requestLayout();
 	}
 	
 	@Override
@@ -155,21 +151,32 @@ public class TrackView extends View {
 		int py = h / 2;
 		c.drawText(text, px-text_w / 2, py, p_text);
 		
-		
-		// Data
 		if(!isInEditMode() && data != null){
-		path.moveTo(0,  h/2);
-		for(int i = 0; i < data.length; i++){	
-			double half_h = (double)h/2.0;
-			int y = (int)((( (double)data[i] / (double)dMax ) * half_h) + half_h);
-			path.lineTo((int)((double)i/(double)data.length * w), y );
+			double half_h = ((double)h / 2.0) - 2.0;
+			path.moveTo(0,  (float)half_h);
+			//Log.d("swiftalk", "w: " + w + "  h: " + h + "  half_h: " + half_h + "  dMax:" + dMax);
+			
+			if (data.length > 100*w){ // Plot Abridged
+				for(int i = 0; i < w; i++){
+					double tmp_data = (double)data[(int)(  ((double)i/(double)w * (double)data.length)  )];
+					int y = (int)((( tmp_data / dMax ) * half_h) + half_h);
+					int x = i;
+					path.lineTo(x, y);
+					//Log.d("swiftalk", "x :" + x + "  y:" + y + "  data[i]:" + data[i]);
+				}
+			}
+			else{ // Plot Full
+				for(int i = 0; i < data.length; i++){
+					int y = (int)((( (double)data[i] / dMax ) * half_h) + half_h);
+					int x = (int)((double)i/(double)data.length * w);
+					path.lineTo(x, y);
+					//Log.d("swiftalk", "x :" + x + "  y:" + y + "  data[i]:" + data[i]);
+				}
+			}
+			c.drawPath(path, p_data);
 		}
-		
-		c.drawPath(path, p_data);
-		
 		long end = System.currentTimeMillis();
 		Log.d("swiftalk", "finished drawing TrackView: " + (end - start) + "ms");
-		}
 	}
 	
 	@Override
@@ -240,11 +247,11 @@ public class TrackView extends View {
     	data = slowTrack;
     }
     
-	private short absMax(short[] d){
-		short max = 0;
+	private double absMax(short[] d){
+		double max = 0;
 		for(int i = 0; i < d.length; i++){
-			if (d[i] > max){
-				max = d[i];
+			if (Math.abs(d[i]) > max){
+				max = Math.abs(d[i]);
 			}
 		}
 		return max;
