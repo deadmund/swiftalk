@@ -158,7 +158,7 @@ public class TrackView extends View {
 			path.moveTo(0,  (float)half_h);
 			//Log.d("swiftalk", "w: " + w + "  h: " + h + "  half_h: " + half_h + "  dMax:" + dMax);
 			
-			if (data.length > 10*w){ // Plot Abridged
+			if (data.length > 50*w){ // Plot Abridged
 				for(int i = 0; i < w; i++){
 					double tmp_data = (double)data[(int)(  ((double)i/(double)w * (double)data.length)  )];
 					int y = (int)((( tmp_data / dMax ) * half_h) + half_h);
