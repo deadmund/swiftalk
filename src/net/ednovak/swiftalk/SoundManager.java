@@ -1,8 +1,9 @@
 package net.ednovak.swiftalk;
 
-import java.util.ArrayList;
-
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.Context;
+import android.content.DialogInterface;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioRecord;
@@ -12,16 +13,21 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.view.View.OnLongClickListener;
 import android.view.ViewGroup.LayoutParams;
+import android.view.animation.Animation;
+import android.view.animation.AnimationUtils;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 import android.widget.ToggleButton;
 
 public class SoundManager extends Activity {
 	
-	final private double Fs = 44100.0;
+	final Context ctx = this;
+	LinearLayout ll;
 	
-	private ArrayList <TrackView> tracks = new ArrayList<TrackView>();
+	final private double Fs = 44100.0;
 	
 	final private short[] tmp = new short[(int)Fs*10];
 	private int tmpEnd = 0;
@@ -33,16 +39,27 @@ public class SoundManager extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.sound_manager_layout);
+        
+        ll = (LinearLayout) findViewById(R.id.linlay);
     }
     
     public void newRecording(View v){
     	boolean recording = ((ToggleButton) v).isChecked();
     	//Log.d("swiftalk", "recording: " + recording);
-    	if(recording){
-    		startRecording();
+    	if(recording){  // BEGIN RECORDING
+    		if (ll.getChildCount() < 4){ // ONLY CAN STORE 4 TRACKS!
+    			startRecording();
+        		recLightAnimation(recording);
+    		}
+    		else{
+    			((ToggleButton)v).setChecked(false);
+    			Toast.makeText(ctx, "You must delete a recording first!", Toast.LENGTH_SHORT).show();
+    		}
     	}
-    	else{
-    		stopRecording();
+
+    	else{ // STOP RECORDING
+			stopRecording();
+			recLightAnimation(recording);
     	}
     }
     
@@ -109,10 +126,8 @@ public class SoundManager extends Activity {
     	catch(ArrayIndexOutOfBoundsException e){
     		Log.d("swiftalk", "i: " + i + "  tmp_chunk.length: " + tmp_chunk.length + "  tmp.length:" + tmp.length + "  tmpEnd: " + tmpEnd);
     	}
-    	
-    	int num = tracks.size()+1;;
-    	
-    	TrackView tv = new TrackView(this, tmp_chunk, num);
+
+    	final TrackView tv = new TrackView(this, tmp_chunk, ll.getChildCount()+1);
     	tv.setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT, 70));
     	tv.setOnClickListener(new OnClickListener(){
     		@Override
@@ -122,37 +137,66 @@ public class SoundManager extends Activity {
     		}
     	});
     	
-        LinearLayout ll = (LinearLayout) findViewById(R.id.linlay);
         ll.addView(tv);
-        tracks.add(tv);
+    	
+    	tv.setLongClickable(true); // not sure if this is needed
+    	tv.setOnLongClickListener(new OnLongClickListener() {
+    		@Override
+    		public boolean onLongClick(View v){
+    			Log.d("swiftalk", "SoundManager LongClick");
+    			AlertDialog.Builder adb = new AlertDialog.Builder(ctx);
+    			adb.setTitle("Delete Recording");
+    			adb.setMessage("Delete Recording " + tv.getTrackNumber() + "?");
+    			adb.setIcon(android.R.drawable.ic_dialog_alert);
+    			adb.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+    			    public void onClick(DialogInterface dialog, int whichButton) {
+    			        ll.removeView(tv);
+    			        renumber();
+    			        ll.invalidate();
+    			    }});
+    			adb.setNegativeButton("Cancel", new DialogInterface.OnClickListener(){
+    				public void onClick(DialogInterface dialog, int whichButton){
+    					dialog.cancel();
+    				}
+    			});
+    			AlertDialog ad = adb.create();
+    			ad.show();
+    			
+    			return false;
+    		}
+    	});
+
+
+
         long e = System.currentTimeMillis();
         Log.d("swiftalk", "storeTmpAsTrack: " +( e - s));
     	
     }
     
     private void stopPlaying(){
-    	at.stop();
-    	at.pause();
-    	at.flush();
+    	try{
+    		at.stop();
+    		at.pause();
+    		at.flush();
+    	}
+    	catch (Exception e){};
     }
     
     private void play(short[] data){
+    	Log.d("swiftalk", "on play");
     	final short[] d = data;
     	
-    	if(at != null){
-    		stopPlaying();
-    	}
+    	stopPlaying();
     	
-    	int minSize = AudioTrack.getMinBufferSize((int)Fs,
+    	final int buffSize = AudioTrack.getMinBufferSize((int)Fs,
     			AudioFormat.CHANNEL_OUT_MONO, 
-    			AudioFormat.ENCODING_PCM_16BIT);
+    			AudioFormat.ENCODING_PCM_16BIT)*2;
     	
-    	final int track_size = Math.max(minSize, d.length);
 		at =  new AudioTrack(AudioManager.STREAM_MUSIC,
 			(int)Fs,
 	    	AudioFormat.CHANNEL_OUT_MONO,
 	    	AudioFormat.ENCODING_PCM_16BIT,
-	    	track_size,
+	    	buffSize,
 	    	AudioTrack.MODE_STREAM);
     	
     	Thread t = new Thread(){
@@ -162,18 +206,51 @@ public class SoundManager extends Activity {
 			    	if(at.getState() == AudioTrack.STATE_INITIALIZED){
 			    		// Tried mode_static, it cut off the end of the sound
 			    		at.play();
-			    		at.write(d, 0, track_size);
-			    		// Log.d("swiftalk", "Playing number: " + num + "  track_size: " + track_size + "  in s:" + track_size/Fs);
-			    		at.stop();
-			    		at.flush();
-			    	}
-			    	else{
-			    		Toast.makeText(getApplicationContext(), "Slow Down!", Toast.LENGTH_SHORT).show();
+			    		writeToBuffer(d, buffSize);
+			    		stopPlaying();
 			    	}
 	    		}
     		}
     	};
     	t.start();
 
+    }
+    
+    private void writeToBuffer(short[] data, int buff_size){
+    	short[] chunk = new short[buff_size/2];
+    	int i = 0;
+    	while(i < data.length){
+    		
+    		// make a chunk
+    		for(int j = 0; i < data.length && j < chunk.length; j++){
+    			chunk[j] = data[i];
+    			i++;
+    		}
+    		
+    		// write the chunk
+    		int a = at.write(chunk, 0, chunk.length);
+    		//Log.d("swiftalk", "wrote " + a + " shorts");
+    	}
+    }
+    
+    private void recLightAnimation(boolean r){
+    	ImageView iv = (ImageView)findViewById(R.id.rec_image);
+    	if(r){
+    		iv.setVisibility(View.VISIBLE);
+    		Animation a = AnimationUtils.loadAnimation(ctx, R.anim.blink);
+    		iv.startAnimation(a);
+    	}
+    	else{
+    		iv.clearAnimation();
+    		iv.setVisibility(View.INVISIBLE);
+    	}
+    }
+    
+    private void renumber(){
+    	for(int i = 0; i < ll.getChildCount(); i++){
+    		TrackView tv = (TrackView)(ll.getChildAt(i));
+    		tv.setTrackNumber(i+1);
+    		tv.invalidate();
+    	}
     }
 }

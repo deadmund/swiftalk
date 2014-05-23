@@ -28,13 +28,15 @@ public class TrackView extends View {
 	private Path path;
 	private Shader shader;
 	
+	private int speed = 0;
 	private short[] data;
 	private double dMax;
 	
 	private final int DARK_BLUE = Color.rgb(70, 95, 255);
 	private final int LIGHT_BLUE = Color.rgb(160, 207, 255);
 	
-	private GestureDetector mDetector;
+	private GestureDetector singleTapDetector;
+	private GestureDetector flingDetector;
 	
 	private static Toast tst;
 	
@@ -83,7 +85,8 @@ public class TrackView extends View {
 		
 		
         // Create a gesture detector to handle onTouch messages
-        mDetector = new GestureDetector(TrackView.this.getContext(), new GestureListener());
+        singleTapDetector = new GestureDetector(TrackView.this.getContext(), new singleTapListener());
+        flingDetector = new GestureDetector(TrackView.this.getContext(), new flingListener());
 
 	}
 	
@@ -177,67 +180,95 @@ public class TrackView extends View {
 		Log.d("swiftalk", "finished drawing TrackView: " + (end - start) + "ms");
 	}
 	
+	
 	@Override
 	public boolean onTouchEvent(MotionEvent event){
-		boolean result = mDetector.onTouchEvent(event);
-		Log.d("swiftalk", "view onTouch   mDetector result: " + result);
-		if(result){
-			return super.onTouchEvent(event);
+		
+		// Events are flowing with with things like (Down) and (Move) 
+		//Log.d("swiftalk", "event: " + event.getAction());
+		
+		// First see if this might be a fling
+		// r1 will be true when there is a down and then a move sequentially
+		boolean r1 = flingDetector.onTouchEvent(event);
+		// r1, true if this is a fling
+		
+		MotionEvent newEvent = MotionEvent.obtain(event);		
+		if(r1){ // If there is a movement, I need to cancel the original down
+			// This is because the original down also triggers a timer
+			// for onLongClick() at the super.onTouchEvent
+			newEvent.setAction(MotionEvent.ACTION_CANCEL);
 		}
-		return result;
-	}	
+		
+		// Pass the events to the onClick and onLongClick listeners
+		// If there is a fling, the original event will have its timer canceled
+		r1 = super.onTouchEvent(newEvent);
+
+		// This just listens for single taps to animate the clicking of the button
+		boolean r3 = singleTapDetector.onTouchEvent(event);
+		// r3 is always true (cause it's only an animation)
+		
+		return r1; // continue processing events (True || False)
+	}
+
+	private class flingListener extends GestureDetector.SimpleOnGestureListener {
+		
+		@Override
+		public boolean onFling(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY){
+			//Log.d("swiftalk", "onFling");
+			
+			e1.setAction(MotionEvent.ACTION_CANCEL);
+			
+			float sensitivity  = 50;
+			if(e1.getX() - e2.getX() > sensitivity){
+				if(speed > -3){
+					slowDown();
+					makeToast("Slow Down " + getTrackNumber() + "!");
+				}
+				return true;
+			}
+			else if(e2.getX() - e1.getX() > sensitivity){
+				if(speed < 4){
+					speedUp();
+					makeToast("Speed Up " + getTrackNumber() + "!");
+				}
+				return true;
+			}
+			return false;
+		}
+		
+		@Override
+		public boolean onSingleTapUp(MotionEvent e){
+			return false;
+		}
+		
+	}
 
 	
-	private class GestureListener extends GestureDetector.SimpleOnGestureListener {
+	private class singleTapListener extends GestureDetector.SimpleOnGestureListener {
 		@Override
 		public boolean onDown(MotionEvent e){
-			Log.d("swiftalk", "onDown");
+			//Log.d("swiftalk", "onDown");
 			return true;
 		}
 		
 		@Override // When onDown happend but there user has not moved or up yet
 		public void onShowPress(MotionEvent e){
-			Log.d("swiftalk", "onShowPress");
+			//Log.d("swiftalk", "onShowPress");
 		}
 		
-		@Override
-		public void onLongPress(MotionEvent e){
-			Log.d("swiftalk", "onLongPress");
-		}
 		
 		@Override // User lifts tap
 		public boolean onSingleTapUp(MotionEvent e){
-			Log.d("swiftalk", "onSingleTapUp");
+			//Log.d("swiftalk", "onSingleTapUp");
+			Animation a = AnimationUtils.loadAnimation(TrackView.this.getContext(), R.anim.quick_fade_blink);
+			TrackView.this.startAnimation(a);
 			return true;
 		}
 		
 		@Override
 		public boolean onSingleTapConfirmed(MotionEvent e){
-			//Animation a = AnimationUtils.loadAnimation(TrackView.this.getContext(), R.anim.hyperspace);
-			//TrackView.this.startAnimation(a);
-			Log.d("swiftalk", "onSingleTapConfirmed");
-			return true;
-		}
-		
-		
-
-		
-		@Override
-		public boolean onFling(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY){
-			Log.d("swiftalk", "onFling");
-			
-			float sensitivity  = 50;
-			if(e1.getX() - e2.getX() > sensitivity){
-				//slowDown();
-				makeToast("Slow Down " + getTrackNumber() + "!");
-				return false;
-			}
-			else if(e2.getX() - e1.getX() > sensitivity){
-				//speedUp();
-				makeToast("Speed Up " + getTrackNumber() + "!");
-				return false;
-			}
-			return true;
+			//Log.d("swiftalk", "onSingleTapConfirmed");
+			return false;
 		}
 	}
 
@@ -251,9 +282,11 @@ public class TrackView extends View {
     	}
     	
     	data = fastTrack;
+    	speed++;
     }
     
     private void slowDown(){
+    	
     	short[] origTrack = data;
     	short[] slowTrack = new short[origTrack.length*2];
     	
@@ -263,6 +296,7 @@ public class TrackView extends View {
     	}
     	
     	data = slowTrack;
+    	speed--;
     }
     
 	private double absMax(short[] d){
@@ -281,6 +315,10 @@ public class TrackView extends View {
 		}
 		tst = Toast.makeText(TrackView.this.getContext(), text, Toast.LENGTH_SHORT);
 		tst.show();
+	}
+	
+	public void darken(){
+		
 	}
 
 }
