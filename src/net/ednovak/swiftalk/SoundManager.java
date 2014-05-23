@@ -117,6 +117,7 @@ public class SoundManager extends Activity {
     	tv.setOnClickListener(new OnClickListener(){
     		@Override
     		public void onClick(View v){
+    			Log.d("swiftalk", "onClick");
     			play( ((TrackView)v).getTrackData());
     		}
     	});

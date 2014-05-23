@@ -84,10 +84,6 @@ public class TrackView extends View {
 		
         // Create a gesture detector to handle onTouch messages
         mDetector = new GestureDetector(TrackView.this.getContext(), new GestureListener());
-        // Turn off long press--this control doesn't use it, and if long press is enabled,
-        // you can't scroll for a bit, pause, then scroll some more (the pause is interpreted
-        // as a long press, apparently)
-        mDetector.setIsLongpressEnabled(false);
 
 	}
 	
@@ -158,7 +154,7 @@ public class TrackView extends View {
 			path.moveTo(0,  (float)half_h);
 			//Log.d("swiftalk", "w: " + w + "  h: " + h + "  half_h: " + half_h + "  dMax:" + dMax);
 			
-			if (data.length > 100*w){ // Plot Abridged
+			if (data.length > 10*w){ // Plot Abridged
 				for(int i = 0; i < w; i++){
 					double tmp_data = (double)data[(int)(  ((double)i/(double)w * (double)data.length)  )];
 					int y = (int)((( tmp_data / dMax ) * half_h) + half_h);
@@ -183,48 +179,66 @@ public class TrackView extends View {
 	
 	@Override
 	public boolean onTouchEvent(MotionEvent event){
-		boolean res = mDetector.onTouchEvent(event);
-		if(!res){
+		boolean result = mDetector.onTouchEvent(event);
+		Log.d("swiftalk", "view onTouch   mDetector result: " + result);
+		if(result){
 			return super.onTouchEvent(event);
 		}
-		return res;
+		return result;
 	}	
 
 	
 	private class GestureListener extends GestureDetector.SimpleOnGestureListener {
 		@Override
-		public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY){
-			//animate().translationXBy(distanceX);
-			return false;
+		public boolean onDown(MotionEvent e){
+			Log.d("swiftalk", "onDown");
+			return true;
 		}
 		
+		@Override // When onDown happend but there user has not moved or up yet
+		public void onShowPress(MotionEvent e){
+			Log.d("swiftalk", "onShowPress");
+		}
+		
+		@Override
+		public void onLongPress(MotionEvent e){
+			Log.d("swiftalk", "onLongPress");
+		}
+		
+		@Override // User lifts tap
+		public boolean onSingleTapUp(MotionEvent e){
+			Log.d("swiftalk", "onSingleTapUp");
+			return true;
+		}
+		
+		@Override
+		public boolean onSingleTapConfirmed(MotionEvent e){
+			//Animation a = AnimationUtils.loadAnimation(TrackView.this.getContext(), R.anim.hyperspace);
+			//TrackView.this.startAnimation(a);
+			Log.d("swiftalk", "onSingleTapConfirmed");
+			return true;
+		}
+		
+		
+
+		
+		@Override
 		public boolean onFling(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY){
 			Log.d("swiftalk", "onFling");
 			
 			float sensitivity  = 50;
 			if(e1.getX() - e2.getX() > sensitivity){
-				slowDown();
+				//slowDown();
 				makeToast("Slow Down " + getTrackNumber() + "!");
-				Log.d("swiftalk", "slow down");
-				return true;
+				return false;
 			}
 			else if(e2.getX() - e1.getX() > sensitivity){
-				speedUp();
+				//speedUp();
 				makeToast("Speed Up " + getTrackNumber() + "!");
-				Log.d("swiftalk", "speed up");
-				return true;
+				return false;
 			}
-			return false;
+			return true;
 		}
-		
-		public boolean onDown(MotionEvent e){
-			Animation a = AnimationUtils.loadAnimation(TrackView.this.getContext(), R.anim.blink);
-			TrackView.this.startAnimation(a);
-			return false;
-		}
-		
-		
-		
 	}
 
 	
