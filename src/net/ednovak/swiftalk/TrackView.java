@@ -16,6 +16,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
+import android.widget.ImageView;
 import android.widget.Toast;
 
 public class TrackView extends View {
@@ -221,6 +222,7 @@ public class TrackView extends View {
 			float sensitivity  = 50;
 			if(e1.getX() - e2.getX() > sensitivity){
 				if(speed > -3){
+					sweep("left");
 					slowDown();
 					makeToast("Slow Down " + getTrackNumber() + "!");
 				}
@@ -228,6 +230,7 @@ public class TrackView extends View {
 			}
 			else if(e2.getX() - e1.getX() > sensitivity){
 				if(speed < 4){
+					sweep("right");
 					speedUp();
 					makeToast("Speed Up " + getTrackNumber() + "!");
 				}
@@ -319,6 +322,17 @@ public class TrackView extends View {
 	
 	public void darken(){
 		
+	}
+	
+	public void sweep(String dir){
+		if(dir == "right"){
+			Animation a = AnimationUtils.loadAnimation(TrackView.this.getContext(), R.anim.spring_right);
+			TrackView.this.startAnimation(a);
+		}
+		if(dir == "left"){			
+			Animation a = AnimationUtils.loadAnimation(TrackView.this.getContext(), R.anim.spring_left);
+			TrackView.this.startAnimation(a);
+		}
 	}
 
 }
