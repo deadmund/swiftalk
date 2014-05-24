@@ -75,12 +75,16 @@ public class SoundManager extends Activity {
     			AudioFormat.CHANNEL_IN_MONO,
     			AudioFormat.ENCODING_PCM_16BIT, buffSize);
     	
-    	Log.d("swiftalk", "Recording Buffer size: " + buffSize);
+    	//Log.d("swiftalk", "Recording Buffer size: " + buffSize);
     	Thread recThread = new Thread(new Runnable(){
     		public void run(){
     	    	while(ar.getRecordingState() == AudioRecord.RECORDSTATE_RECORDING){
     	    		int new_samples = ar.read(tmp, tmpEnd, buffSize/2);
     	    		tmpEnd += new_samples;
+    	    		
+    	    		if(tmpEnd > tmp.length){
+    	    			// something wen very wrong here! 
+    	    		}
     	    	}
     	    	Log.d("swiftalk", "Recording Thread Finished");
     		}
@@ -91,29 +95,29 @@ public class SoundManager extends Activity {
     
     private void stopRecording() {
     	//Log.d("swiftalk", "rec length: " + tmpEnd + "  in s: " + tmpEnd / Fs);
-    	long s = System.currentTimeMillis();
+    	//long s = System.currentTimeMillis();
     	ar.stop();
-    	long f = System.currentTimeMillis();
-    	Log.d("swiftalk", "ar.stop: " + (f - s));
+    	//long f = System.currentTimeMillis();
+    	//Log.d("swiftalk", "ar.stop: " + (f - s));
     	storeTmpAsTrack();
     	eraseTmp();
-        long e = System.currentTimeMillis();
-        Log.d("swiftalk", "stopRecording: " +( e - s));
+        //long e = System.currentTimeMillis();
+        //Log.d("swiftalk", "stopRecording: " +( e - s));
     }
     
     private void eraseTmp(){
-    	long s = System.currentTimeMillis();
+    	//long s = System.currentTimeMillis();
     	for(int i = 0; i<tmp.length; i++){
     		tmp[i] = 0;
     	}
     	tmpEnd = 0;
     	
-        long e = System.currentTimeMillis();
-        Log.d("swiftalk", "eraseTmp: " +( e - s));
+        //long e = System.currentTimeMillis();
+        //Log.d("swiftalk", "eraseTmp: " +( e - s));
     }
     
     private void storeTmpAsTrack(){
-    	long s = System.currentTimeMillis();
+    	//long s = System.currentTimeMillis();
     	
     	// Get only the chunk of data that is non-zero
     	short[] tmp_chunk = new short[tmpEnd];
@@ -124,7 +128,7 @@ public class SoundManager extends Activity {
 	    	}
     	}
     	catch(ArrayIndexOutOfBoundsException e){
-    		Log.d("swiftalk", "i: " + i + "  tmp_chunk.length: " + tmp_chunk.length + "  tmp.length:" + tmp.length + "  tmpEnd: " + tmpEnd);
+    		//Log.d("swiftalk", "i: " + i + "  tmp_chunk.length: " + tmp_chunk.length + "  tmp.length:" + tmp.length + "  tmpEnd: " + tmpEnd);
     	}
 
     	final TrackView tv = new TrackView(this, tmp_chunk, ll.getChildCount()+1);
@@ -132,7 +136,7 @@ public class SoundManager extends Activity {
     	tv.setOnClickListener(new OnClickListener(){
     		@Override
     		public void onClick(View v){
-    			Log.d("swiftalk", "onClick");
+    			//Log.d("swiftalk", "onClick");
     			play( ((TrackView)v).getTrackData());
     		}
     	});
@@ -143,7 +147,7 @@ public class SoundManager extends Activity {
     	tv.setOnLongClickListener(new OnLongClickListener() {
     		@Override
     		public boolean onLongClick(View v){
-    			Log.d("swiftalk", "SoundManager LongClick");
+    			//Log.d("swiftalk", "SoundManager LongClick");
     			AlertDialog.Builder adb = new AlertDialog.Builder(ctx);
     			adb.setTitle("Delete Recording");
     			adb.setMessage("Delete Recording " + tv.getTrackNumber() + "?");
@@ -168,8 +172,8 @@ public class SoundManager extends Activity {
 
 
 
-        long e = System.currentTimeMillis();
-        Log.d("swiftalk", "storeTmpAsTrack: " +( e - s));
+        //long e = System.currentTimeMillis();
+        //Log.d("swiftalk", "storeTmpAsTrack: " +( e - s));
     	
     }
     
@@ -183,7 +187,7 @@ public class SoundManager extends Activity {
     }
     
     private void play(short[] data){
-    	Log.d("swiftalk", "on play");
+    	//Log.d("swiftalk", "on play");
     	final short[] d = data;
     	
     	stopPlaying();

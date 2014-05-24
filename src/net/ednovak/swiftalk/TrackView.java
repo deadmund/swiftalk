@@ -26,6 +26,7 @@ public class TrackView extends View {
 	private Paint p_border;
 	private Paint p_text;
 	private Paint p_data;
+	private Paint p_data_rec;
 	private Path path;
 	private Shader shader;
 	
@@ -69,22 +70,35 @@ public class TrackView extends View {
 	}
 	
 	private void init(){
-		// Set up paints and shader
-		p_bg = new Paint();
-		p_text = new Paint();
+		// Set up paints
 		
+		// BG
+		p_bg = new Paint();
+		p_bg.setAlpha(32);
+		p_bg.setStyle(Paint.Style.FILL);
+		
+		// Text
+		p_text = new Paint();
+		p_text.setColor(Color.rgb(0, 98, 98));
+		p_text.setTextSize(20);
+		p_text.setStyle(Paint.Style.FILL);
+		
+		//Data
 		p_data = new Paint();
-		p_data.setColor(DARK_BLUE);
+		p_data.setColor(Color.BLACK);
 		p_data.setStrokeWidth(1);
 		p_data.setStyle(Paint.Style.STROKE);
-		p_data.setAlpha(165);
+		// data path
+		path = new Path();
+		
+		//Data Rect
+		p_data_rec = new Paint();
+		p_data_rec.setColor(DARK_BLUE);
+		p_data_rec.setStyle(Paint.Style.FILL);
+		p_data_rec.setAlpha(200);
 		
 		p_border = new Paint();
-		
-		path = new Path();
-		shader = new Shader();
-		
-		
+
         // Create a gesture detector to handle onTouch messages
         singleTapDetector = new GestureDetector(TrackView.this.getContext(), new singleTapListener());
         flingDetector = new GestureDetector(TrackView.this.getContext(), new flingListener());
@@ -130,10 +144,7 @@ public class TrackView extends View {
 		int w = getMeasuredWidth();
 		
 		// Background color
-		shader = new LinearGradient(0, 0, 0, h, Color.WHITE, Color.BLACK, TileMode.CLAMP);
-		p_bg.setShader(shader); 
-		p_bg.setAlpha(32);
-		p_bg.setStyle(Paint.Style.FILL);
+		p_bg.setShader(new LinearGradient(0, 0, 0, h, Color.WHITE, Color.BLACK, TileMode.CLAMP)); 
 		c.drawRect(0, 0, w, h, p_bg);
 
 		
@@ -145,36 +156,47 @@ public class TrackView extends View {
 		
 		// Text
 		String text = "Recording " + getTrackNumber();
-		p_text.setColor(Color.rgb(0, 98, 98));
-		p_text.setTextSize(20);
-		p_text.setStyle(Paint.Style.FILL);
 		float text_w = p_text.measureText(text); 
 		int px = w / 2;
 		int py = h / 2;
 		c.drawText(text, px-text_w / 2, py, p_text);
 		
+		
+		// Data
 		if(!isInEditMode() && data != null){
 			double half_h = ((double)h / 2.0) - 2.0;
 			path.moveTo(0,  (float)half_h);
 			//Log.d("swiftalk", "w: " + w + "  h: " + h + "  half_h: " + half_h + "  dMax:" + dMax);
 			
-			if (data.length > 50*w){ // Plot Abridged
-				for(int i = 0; i < w; i++){
-					double tmp_data = (double)data[(int)(  ((double)i/(double)w * (double)data.length)  )];
-					int y = (int)((( tmp_data / dMax ) * half_h) + half_h);
-					int x = i;
-					path.lineTo(x, y);
-					//Log.d("swiftalk", "x :" + x + "  y:" + y + "  data[i]:" + data[i]);
-				}
+			// Calculate the RMS value for each bucket
+			// I make 1 bucket for every 2 pixels
+			double half_w = (double)w/2.0;
+			
+			int[] RMS_arr = new int[(int)half_w];
+			for(int i = 0; i < half_w; i++){
+				int s = (int)((i/half_w) * data.length);
+				int e = (int)(((i+1)/half_w) * data.length);
+				//Log.d("swiftalk", "s: " + s + "  e: " + e + "  w:" + w + "  half_w:" + half_w);
+				RMS_arr[i] = RMS(data, s, e);
+				//Log.d("swiftalk", "s: " + s + "  e: " + e + "  rms: " + RMS_arr[i] + "  w/2: " + w/2 + "  half_w: " + half_w);
 			}
-			else{ // Plot Full
-				for(int i = 0; i < data.length; i++){
-					int y = (int)((( (double)data[i] / dMax ) * half_h) + half_h);
-					int x = (int)((double)i/(double)data.length * w);
-					path.lineTo(x, y);
-					//Log.d("swiftalk", "x :" + x + "  y:" + y + "  data[i]:" + data[i]);
-				}
+			
+			// Find the largest RMS value
+			int rmsMax = absMax(RMS_arr);
+			//Log.d("swiftalk", "Max RMS: " + rmsMax);
+			
+			// Plot the data points
+			// Each y is the normalize RMS * height
+			p_data_rec.setShader(new LinearGradient(0,h/2,0,h,DARK_BLUE,LIGHT_BLUE,Shader.TileMode.CLAMP));
+			for(int i = 0; i < w; i = i + 1){
+				int x = i;
+				int y = (int)(( (double)RMS_arr[i/2] / (double)rmsMax) * h);
+				y = h - y;
+				path.lineTo(x, y);
+				c.drawRect(x, y, x+1, h, p_data_rec);
 			}
+			
+			//p_data.setShader(new LinearGradient(0,0,0,h,0xff000000,0xffffffff,Shader.TileMode.CLAMP));
 			c.drawPath(path, p_data);
 		}
 		long end = System.currentTimeMillis();
@@ -312,6 +334,16 @@ public class TrackView extends View {
 		return max;
 	}
 	
+	private int absMax(int[] d){
+		int max = Integer.MIN_VALUE;
+		for(int i = 0; i < d.length; i++){
+			if(Math.abs(d[i]) > max){
+				max = Math.abs(d[i]);
+			}
+		}
+		return max;
+	}
+	
 	private void makeToast(String text){
 		if(tst != null){
 			tst.cancel();
@@ -333,6 +365,14 @@ public class TrackView extends View {
 			Animation a = AnimationUtils.loadAnimation(TrackView.this.getContext(), R.anim.spring_left);
 			TrackView.this.startAnimation(a);
 		}
+	}
+	
+	public int RMS(short[] d, int s, int e){
+		double top = 0;
+		for(int i = s; i<e; i++){
+			top += (d[i]*d[i]);
+		}
+		return (int)(Math.sqrt(top /(e-s)));
 	}
 
 }
