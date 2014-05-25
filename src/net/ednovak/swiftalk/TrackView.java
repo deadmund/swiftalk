@@ -95,7 +95,7 @@ public class TrackView extends View {
 		p_data_rec = new Paint();
 		p_data_rec.setColor(DARK_BLUE);
 		p_data_rec.setStyle(Paint.Style.FILL);
-		p_data_rec.setAlpha(200);
+		p_data_rec.setAlpha(235);
 		
 		p_border = new Paint();
 
@@ -191,13 +191,13 @@ public class TrackView extends View {
 			for(int i = 0; i < w; i = i + 1){
 				int x = i;
 				int y = (int)(( (double)RMS_arr[i/2] / (double)rmsMax) * h);
-				y = h - y;
-				path.lineTo(x, y);
+				y = h - y + 2;
+				//path.lineTo(x, y);
 				c.drawRect(x, y, x+1, h, p_data_rec);
 			}
 			
 			//p_data.setShader(new LinearGradient(0,0,0,h,0xff000000,0xffffffff,Shader.TileMode.CLAMP));
-			c.drawPath(path, p_data);
+			//c.drawPath(path, p_data);
 		}
 		long end = System.currentTimeMillis();
 		Log.d("swiftalk", "finished drawing TrackView: " + (end - start) + "ms");

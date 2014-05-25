@@ -22,6 +22,9 @@ import android.widget.LinearLayout;
 import android.widget.Toast;
 import android.widget.ToggleButton;
 
+import com.google.android.gms.ads.AdRequest;
+import com.google.android.gms.ads.AdView;
+
 public class SoundManager extends Activity {
 	
 	final Context ctx = this;
@@ -41,6 +44,12 @@ public class SoundManager extends Activity {
         setContentView(R.layout.sound_manager_layout);
         
         ll = (LinearLayout) findViewById(R.id.linlay);
+        
+        // Look up the AdView as a resource and load a request.
+        AdView adView = (AdView)this.findViewById(R.id.adView);
+        AdRequest adRequest = new AdRequest.Builder().build();
+        adView.loadAd(adRequest);
+
     }
     
     public void newRecording(View v){
